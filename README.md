@@ -38,3 +38,7 @@ This is a Python Repository generated to replicate the steps done by Sammi Zhu i
 `coords_inside_query.py`: More fine-grained version of coords_inside_box, query data for points inside the village
 
 `aggregate_features.py`: Aggregate the MOSAIKS features for each village
+
+### GDP Replication Files
+
+These files work anagolously as the Crop Burning files.
