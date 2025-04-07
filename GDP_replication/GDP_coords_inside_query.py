@@ -5,9 +5,35 @@ from matplotlib import pyplot as plt
 import geopandas as gpd
 from shapely.geometry import box, Point, Polygon
 
+# Library used for Redivis API to query MOSAIKS data
+# https://github.com/Global-Policy-Lab/mosaiks_tutorials/blob/main/01_querying_redivis.ipynb
 import redivis
 
-## These variables will not change
+# Used for binary search
+import bisect
+    
+def binary_search_dataframe(df, lon, lat):
+    # Create a combined key for the target values
+    target_key = (lon, lat)
+
+    # Create a list of combined keys from the DataFrame
+    keys = list(zip(df['lon'], df['lat']))
+
+    # Use bisect_left to find the insertion point
+    i = bisect.bisect_left(keys, target_key)
+
+    # Check if the target key exists at the found index
+    if i != len(keys) and keys[i] == target_key:
+        return df.iloc[i]
+    else:
+        return None
+    
+def write_file(file, data):
+    with open(file, 'w') as f:
+        f.write(data)
+
+# These variables will not change
+# Path to MOSAIKS dataset on Redivis
 user = redivis.user("sdss")
 dataset = user.dataset("mosaiks")
 table_name = "mosaiks_2019_planet"
@@ -16,6 +42,7 @@ def compute_bounding_box(polygon):
     minx, miny, maxx, maxy = polygon.bounds
     return miny, maxy, minx, maxx  # Returning (min lat, max lat, min lon, max lon)
 
+# Query all coords within a bounding box and merge the results
 def coords_inside():
 
     data_request_path = "files/Mosaik_Shrid_coordinates_Data_Davide_Rahul_Ashesh_Leonard_2024 - Mosaik_Shrid_coordinates_Data_Davide_Rahul_Ashesh_Leonard_2024.csv"
@@ -118,13 +145,13 @@ def coords_inside():
     combined_gdf_rows = pd.concat(results_by_box.values(), ignore_index=True).set_index('v_shp_id')
     combined_gdf_rows.to_csv("output/coords_inside_merged.csv")
     
-
+# Query all coords using exact coordinates
 def exact_coords_query(file):
 
     df = pd.read_csv(file)
 
     # Restrict the number of rows for query
-    chunk_size = 2000
+    chunk_size = 5000
     total_rows = df.shape[0]
     num_chunks = (total_rows // chunk_size) + 1
 
@@ -144,14 +171,72 @@ def exact_coords_query(file):
         """
         query_result = dataset.query(query_str).to_pandas_dataframe()
         total_query.append(query_result)
+        if i % 5 == 0: 
+            print(f"Processed chunk {i + 1} of {num_chunks}")
+            time.sleep(2)
+
     combined_result = pd.concat(total_query, ignore_index=True)
     return combined_result
 
+# Auxiliary function
+def combine_and_sort_results():
+    query_1 = pd.read_csv("output/all_data_queries_1.csv")
+    query_2 = pd.read_csv("output/all_data_queries_2.csv")
+    query_3 = pd.read_csv("output/all_data_queries_3.csv")
 
-# coords_inside()
+    query_result = pd.concat([query_1, query_2, query_3], ignore_index=True)
+    query_result.sort_values(by=['lon', 'lat'], inplace=True)
+    query_result['coords'] = list(zip(query_result['lon'], query_result['lat']))
+    query_result.to_csv('output/all_data_queries.csv', index=False)
 
-result1 = exact_coords_query("files/coords_inside_1.csv")
-result2 = exact_coords_query("files/coords_inside_2.csv")
+# Query from local files that already contain MOSAIKS data
+def query_from_files(file):
+    result_df = pd.read_csv(file)
+    if 'queried' not in result_df.columns:
+        result_df['queried'] = 0
+    if 'coords' not in result_df.columns:
+        result_df['coords'] = list(zip(result_df['Lon'], result_df['Lat']))
+    result_df.set_index('coords', inplace=True)
 
-combined_result = pd.concat([result1, result2], ignore_index=True)
-combined_result.to_csv("output/coords_inside_query.csv", index=False)
+    query_result = pd.read_csv("output/all_data_queries.csv")
+    query_result.set_index('coords', inplace=True)
+
+    count = 0
+    not_queried = []
+
+    try:
+        for index, row in result_df.iterrows():
+            if row['queried'] == 1: continue
+
+            X_values = binary_search_dataframe(query_result, row['Lon'], row['Lat'])
+            if X_values is not None:
+                for i in range(4000):
+                    result_df.loc[index, f'X_{i}'] = X_values[f'X_{i}']
+                result_df.loc[index, 'queried'] = 1
+                count += 1
+                if count % 100 == 0: print(f"Processed {count} rows")
+            else:
+                not_queried.append(index)
+    except:
+        result_df.to_csv(file)
+        write_file("output/not_queried.txt", "\n".join(not_queried))
+        return
+
+    
+    result_df.to_csv(file)
+    print(f"Changed {count} rows")
+    write_file("output/not_queried.txt", "\n".join(not_queried))
+
+# Add a column to the dataframe to indicate if the row has been queried
+def add_queried_column(file):
+    df = pd.read_csv(file)
+    if 'queried' not in df.columns:
+        df['queried'] = 0
+    df.to_csv(file, index=False)
+
+# Add the X columns to the dataframe where MOSAIKS data can be stored
+def add_X_columns(file):
+    df = pd.read_csv(file)
+    for i in range(4000):
+        df[f'X_{i}'] = 0.0
+    df.to_csv(file, index=False)

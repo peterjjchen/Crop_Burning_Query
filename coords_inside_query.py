@@ -5,9 +5,12 @@ from matplotlib import pyplot as plt
 import geopandas as gpd
 from shapely.geometry import box, Point
 
+# Library used for Redivis API to query MOSAIKS data
+# https://github.com/Global-Policy-Lab/mosaiks_tutorials/blob/main/01_querying_redivis.ipynb
 import redivis
 
-## These variables will not change
+# These variables will not change
+# Path to MOSAIKS dataset on Redivis
 user = redivis.user("sdss")
 dataset = user.dataset("mosaiks")
 
@@ -46,15 +49,8 @@ points_gdf = gpd.GeoDataFrame(
 points_gdf.set_crs(epsg=4326, inplace=True)
 geo_df.set_crs(epsg=4326, inplace=True)
 
-# Prepare the geo_df for spatial join (only need the bbox geometry)
-geo_boxes = geo_df[['bbox']].copy()
-# Optionally, preserve the original index by resetting the index column name
-geo_boxes = geo_boxes.rename(columns={'bbox': 'geometry'})
-geo_boxes = geo_boxes.set_geometry('geometry')
-
 # Perform spatial join to tag each point with the corresponding geo_df row
-joined = gpd.sjoin(points_gdf, geo_boxes, how='inner', predicate='within')
-# 'index_right' now holds the index from geo_df that the point belongs to
+joined = gpd.sjoin(points_gdf, geo_df, how='inner', predicate='within')
 
 # Group the points by the v_shp_id (now stored in 'index_right')
 results_by_box = {v_shp_id: group for v_shp_id, group in joined.groupby('v_shp_id')}
@@ -63,4 +59,4 @@ for v_shp_id, result in results_by_box.items():
     results_by_box[v_shp_id] = result.sort_values(by=['lon', 'lat'])
 
 combined_gdf_rows = pd.concat(results_by_box.values(), ignore_index=True).set_index('v_shp_id')
-combined_gdf_rows.to_csv("output/coords_inside_merged.csv")
+combined_gdf_rows.to_csv("output/coords_inside.csv")

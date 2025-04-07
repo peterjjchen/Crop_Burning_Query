@@ -5,16 +5,19 @@ from matplotlib import pyplot as plt
 import geopandas as gpd
 from shapely.geometry import box, Point, Polygon
 
+# Library used for Redivis API to query MOSAIKS data
+# https://github.com/Global-Policy-Lab/mosaiks_tutorials/blob/main/01_querying_redivis.ipynb
 import redivis
 
-## These variables will not change
+# These variables will not change
+# Path to MOSAIKS dataset on Redivis
 user = redivis.user("sdss")
 dataset = user.dataset("mosaiks")
 table_name = "mosaiks_2019_planet"
 
 data_request_path = "GDP_files/Mosaik_Shrid_coordinates_Data_Davide_Rahul_Ashesh_Leonard_2024 - Mosaik_Shrid_coordinates_Data_Davide_Rahul_Ashesh_Leonard_2024.csv"
 
-# Load the dataset and rename duplicate columns
+# Load the dataset
 df = pd.read_csv(data_request_path)
 
 df.set_index('shrid2', inplace=True)
@@ -35,7 +38,7 @@ def midpoint():
     max_lons = []
     centroids = []
     
-    
+    # Compute bounding boxes for each polygon
     for _, row in df.iterrows():
         polygon = Polygon(eval(row['polygon_coordinates']))
         
@@ -88,5 +91,4 @@ def midpoint():
     total_query.rename(columns = {'lon': 'centroid_x', 'lat': 'centroid_y'}, inplace = True)
     merged_df = df.merge(total_query, how = 'inner', on = ['centroid_x', 'centroid_y'])
 
-    # print(query.head())
     merged_df.to_csv("output/GDP/merged.csv", index=False)

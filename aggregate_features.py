@@ -19,6 +19,7 @@ def aggregate(data, file=""):
 
     print(f"Averaged features saved to {output_file}")
 
-merged_file = "output/coords_inside_merged.csv"
+# Example usage
+merged_file = "output/coords_inside.csv"
 df = pd.read_csv(merged_file)
-aggregate(df, "coords_inside_merged_")
+aggregate(df, "coords_inside_")
