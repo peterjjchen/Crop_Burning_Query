@@ -30,11 +30,9 @@ This is a Python Repository generated to replicate the steps done by Sammi Zhu i
 ```
 ### Crop Burning Files
 `heatmap.ipynb`: Processes, analyzes, and visualizes Mosaik data and Satellite images
+
 `midpoint_query.py`: Queries MOSAIKS data for midpoint of each village
+
 `coords_inside_box.py`: Queries MOSAIKS data for the bounding boxes for each village
+
 `coords_inside_query.py`: More fine-grained version of coords_inside_box, query data for points inside the village.
-
-## Replication Steps ##
-### MOSAIKS Feature Extraction Guide
-
-This guide provides step-by-step instructions for generating granular coordinates, querying MOSAIKS for features, and aggregating the results.
